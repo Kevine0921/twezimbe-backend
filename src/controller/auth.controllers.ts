@@ -65,14 +65,14 @@ export const signUp = asyncWrapper(async (req: Request, res: Response, next: Nex
 
     // Send email
     if (recordedUser) {
-        await sendEmail(req.body.email, "Verify your account", emailMessageBody);
+        sendEmail(req.body.email, "Verify your account", emailMessageBody);
     }
 
     //save user_role
 
     const userRole = await RoleModel.findOne({ role_name: 'User' });
 
-    const roleUser = await RoleUser.create({ role_id: userRole?._id, user_id: recordedUser._id })
+    await RoleUser.create({ role_id: userRole?._id, user_id: recordedUser._id })
 
     // Send response
     res.status(200).json({ message: "Account created!", user: recordedUser });

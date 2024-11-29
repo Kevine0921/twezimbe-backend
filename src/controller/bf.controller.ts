@@ -16,7 +16,6 @@ import Wallet from '../model/wallet.model'
 import contributionModel from '../model/contribution.model';
 import transactionsModel from '../model/transactions.model';
 import bf_settingsModel from '../model/bf_settings.model';
-import { update } from './application.controllers';
 import { generateWallet } from '../utils/generateWallet';
 
 export const getAllBfs = asyncWrapper(async (req, res) => {
