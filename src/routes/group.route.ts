@@ -1,7 +1,6 @@
 import express from "express";
 import { addGroup, getPublicGroups, getJoinedGroupList, getGroupById, joinGroup, leaveGroup, deleteGroup, updateGroupPicture, updateGroup, RequestToJoinGroup, getGroupRequests, declineRequest, acceptRequest, upgradePlan, captureWebHook, getGroupMembers, getAllGroups, handleGroupSuspension } from "../controller/group.controller";
 import { upload } from "../utils/multer";
-import { roleUpdate } from "../controller";
 import { validGroupCreation } from "../utils/groupValidation";
 const roleRouter = express.Router();
 
@@ -23,6 +22,8 @@ roleRouter.post("/leave/:groupId", leaveGroup)
 roleRouter.get('/requests/:groupId', getGroupRequests)
 
 
+
+
 roleRouter.get('/members/:groupId', getGroupMembers)
 roleRouter.post('/:groupId', deleteGroup)
 
@@ -30,5 +31,6 @@ roleRouter.post('/:groupId', deleteGroup)
 
 roleRouter.post('/create-checkout-session', upgradePlan)
 roleRouter.post('/webhook', captureWebHook)
+
 export default roleRouter;
 

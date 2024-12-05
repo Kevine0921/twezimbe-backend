@@ -17,6 +17,7 @@ import contributionModel from '../model/contribution.model';
 import transactionsModel from '../model/transactions.model';
 import bf_settingsModel from '../model/bf_settings.model';
 import { generateWallet } from '../utils/generateWallet';
+import GroupUpgrade from '../model/group_upgrade.model';
 
 export const getAllBfs = asyncWrapper(async (req, res) => {
     const isTokenValid = await ValidateToken(req);
@@ -94,9 +95,14 @@ export const getAllBfs = asyncWrapper(async (req, res) => {
 export const createBf = asyncWrapper(async (req: Request, res: Response) => {
     const isTokenValid = await ValidateToken(req);
     if (!isTokenValid) return res.status(403).json({ errors: "Access denied" });
+    const {
+        fundName,
+        fundDetails,
+        groupId,
+        accountType
+    } = req.body;
 
-    const { fundName, fundDetails, accountType, accountInfo, groupId } = req.body;
-
+    const data = req.body;
     try {
         // Check if the group exists
         const group = await Group.findById(groupId);
@@ -110,11 +116,14 @@ export const createBf = asyncWrapper(async (req: Request, res: Response) => {
         }
 
         const lastGroupWithBf = await Group.findOne({ has_bf: true }).sort({ createdAt: -1 });
-        let groupCode = "00001"
+        let groupCode = "00001";
+
         if (lastGroupWithBf) {
-            // Extract the last group code and increment it
-            const lastGroupCode = parseInt(lastGroupWithBf._id.toString().slice(4, 9));
-            groupCode = (lastGroupCode + 1).toString().padStart(5, '0');
+            const lastGroupCodeStr = lastGroupWithBf._id.toString().slice(4, 9); // Adjust slicing if necessary
+            const lastGroupCode = parseInt(lastGroupCodeStr, 10) || 0; // Fallback to 0 if NaN
+            const newCode = lastGroupCode + 1;
+            const totalLength = lastGroupCodeStr.length; // Use the length of the sliced portion
+            groupCode = newCode.toString().padStart(totalLength, "0");
         }
         const walletAddress = await generateWallet(groupCode, group?._id!, "Bf")
         // Create the new BF
@@ -122,10 +131,16 @@ export const createBf = asyncWrapper(async (req: Request, res: Response) => {
             fundName,
             fundDetails,
             accountType,
-            accountInfo,
+            bankName: data?.bankName || "",
+            bankAccountNumber: data?.bankAccountNumber || "",
+            accountName: data?.accountName || "",
+            accountCurrency: data?.accountCurrency || "",
+            mobileNumber: data?.mobileNumber || "",
+            countryCode: data?.countryCode || "",
             walletAddress: walletAddress.toString().toUpperCase(),
             groupId,
             createdBy: req.user?._id,
+
         });
 
         await newFund.save();
@@ -137,6 +152,30 @@ export const createBf = asyncWrapper(async (req: Request, res: Response) => {
         res.status(201).json({
             status: true,
             bf: newFund
+        });
+    } catch (error) {
+        console.error("Error creating fund:", error);
+        res.status(500).json({ error: "Error creating fund" });
+    }
+});
+
+
+
+export const upgradeGroup = asyncWrapper(async (req: Request, res: Response) => {
+    const isTokenValid = await ValidateToken(req);
+    if (!isTokenValid) return res.status(403).json({ errors: "Access denied" });
+
+    const data = req.body;
+    try {
+        const upgrade = new GroupUpgrade({
+            ...data
+        });
+
+        await upgrade.save();
+
+        res.status(201).json({
+            status: true,
+            upgrade: upgrade
         });
     } catch (error) {
         console.error("Error creating fund:", error);
@@ -161,7 +200,7 @@ export const getGroupBf = asyncWrapper(async (req: Request, res: Response) => {
     const fundUser = await user_bfModel.findOne({ userId: req?.user?._id, bf_id: fund._id });
 
     // Fetch the wallet associated with the BF
-    const wallet = await Wallet.findOne({ ref: fund._id, refType: 'Bf' }).populate({ path: "transactionHistory.user" });
+    const wallet = await Wallet.findOne({ walletAddress: fund.walletAddress }).populate({ path: "transactionHistory.user" });
 
     const contributions = await contributionModel.find({ walletAddress: fund.walletAddress }).populate('contributor')
     res.status(200).json({
@@ -553,38 +592,85 @@ export const getCases = asyncWrapper(async (req, res) => {
     const cases = await bf_caseModel.aggregate([
         {
             $match: {
-                bfId: new mongoose.Types.ObjectId(req.params.bfId)
-            }
+                bfId: new mongoose.Types.ObjectId(req.params.bfId),
+            },
         },
         {
             $lookup: {
-                from: "principals", // Replace with the actual collection name for 'Principal'
+                from: "users",
                 localField: "principal",
                 foreignField: "_id",
-                as: "principal"
-            }
+                as: "principal",
+            },
         },
         {
             $lookup: {
                 from: "users",
                 localField: "affected",
                 foreignField: "_id",
-                as: "affected"
-            }
+                as: "affected",
+            },
         },
         {
             $lookup: {
-                from: "contributions", // Name of the 'Contributions' collection
-                localField: "_id", // The `_id` of the case
-                foreignField: "case", // The `case` field in the Contribution schema
-                as: "contributions" // Field to store the matched contributions
-            }
+                from: "contributions",
+                localField: "_id",
+                foreignField: "case",
+                as: "contributions",
+            },
+        },
+        {
+            $unwind: {
+                path: "$contributions",
+                preserveNullAndEmptyArrays: true,
+            },
+        },
+        {
+            $unwind: {
+                path: "$principal",
+                preserveNullAndEmptyArrays: true,
+            },
+        },
+        {
+            $unwind: {
+                path: "$affected",
+                preserveNullAndEmptyArrays: true,
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "contributions.contributor",
+                foreignField: "_id",
+                as: "contributions.contributor",
+            },
+        },
+        {
+            $group: {
+                _id: "$_id", // Group back by case ID
+                principal: { $first: "$principal" },
+                affected: { $first: "$affected" },
+                bfId: { $first: "$bfId" },
+                status: { $first: "$status" },
+                contributionStatus: { $first: "$contributionStatus" },
+                name: { $first: "$name" },
+                description: { $first: "$description" },
+                contributions: { $push: "$contributions" }, // Rebuild the contributions array
+            },
         },
         {
             $addFields: {
-                totalContributions: { $sum: "$contributions.amount" } // Sum all contributions for the case
-            }
-        }
+                totalContributions: {
+                    $sum: {
+                        $map: {
+                            input: "$contributions",
+                            as: "contribution",
+                            in: "$$contribution.amount",
+                        },
+                    },
+                },
+            },
+        },
     ]);
 
     return res.status(200).json(

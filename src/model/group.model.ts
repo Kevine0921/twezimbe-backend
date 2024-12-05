@@ -32,6 +32,7 @@ const RoleSchema = new Schema({
     has_bf: { type: Boolean, default: false, required: true },
     memberCount: { type: Number, required: true, default: 1 },
     suspended: { type: Boolean, required: true, default: false },
+    membership: { type: Boolean, required: true, default: false },
     created_by: {
         type: ObjectId,
         ref: 'User'

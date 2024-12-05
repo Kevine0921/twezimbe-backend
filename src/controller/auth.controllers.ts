@@ -44,12 +44,17 @@ export const signUp = asyncWrapper(async (req: Request, res: Response, next: Nex
     }
 
     // generateWallet
-    const lastPersonWithWallet = await User.findOne({}).sort({ createdAt: -1 });
-    let walletCode = "00001"
+    const lastPersonWithWallet = await User.findOne(
+        { wallet: { $exists: true, $ne: "" } },
+        { wallet: true }
+    ).sort({ createdAt: -1 });
+    let walletCode: string = "00001";
+
     if (lastPersonWithWallet) {
-        // Extract the last group code and increment it
-        const lastWalletcode = parseInt(lastPersonWithWallet._id.toString().slice(4, 9));
-        walletCode = (lastWalletcode + 1).toString().padStart(5, '0');
+        const lastWalletCode = parseInt(lastPersonWithWallet.wallet?.substring(4, 9) || "0", 10);
+        const newCode = lastWalletCode + 1;
+        const totalLength = lastPersonWithWallet.wallet?.substring(4, 9).length || 5;
+        walletCode = newCode.toString().padStart(totalLength, "0");
     }
     const recordedUser = await UserModel.create(req.body);
     const walletAddress = await generateWallet(walletCode, recordedUser._id, "User")
@@ -65,14 +70,14 @@ export const signUp = asyncWrapper(async (req: Request, res: Response, next: Nex
 
     // Send email
     if (recordedUser) {
-        sendEmail(req.body.email, "Verify your account", emailMessageBody);
+         sendEmail(req.body.email, "Verify your account", emailMessageBody);
     }
 
     //save user_role
 
     const userRole = await RoleModel.findOne({ role_name: 'User' });
 
-    await RoleUser.create({ role_id: userRole?._id, user_id: recordedUser._id })
+    const roleUser = await RoleUser.create({ role_id: userRole?._id, user_id: recordedUser._id })
 
     // Send response
     res.status(200).json({ message: "Account created!", user: recordedUser });
@@ -433,7 +438,27 @@ export const getAllUsers = asyncWrapper(async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Access denied" });
     };
 
-    const users = await UserModel.find({ del_falg: 0 });
+    const users = await UserModel.aggregate([
+        {
+            $match: {
+                del_falg: 0
+            }
+        },
+        {
+            $lookup: {
+                from: "wallets",
+                localField: "wallet",
+                foreignField: "walletAddress",
+                as: "wallet"
+            }
+        },
+        {
+            $unwind: {
+                path: "$wallet",
+                preserveNullAndEmptyArrays: true
+            }
+        }
+    ]);
     return res.status(200).json({ status: true, users })
 })
 
@@ -537,4 +562,27 @@ export const sendCompleteProfileEmail = asyncWrapper(async (req, res) => {
             message: "Please complete KYC info for the affected person."
         }
     )
+})
+
+export const createUserWallet = asyncWrapper(async (req, res) => {
+    const { userId } = req.body
+    const lastPersonWithWallet = await User.findOne(
+        { wallet: { $exists: true, $ne: "" } },
+        { wallet: true }
+    ).sort({ createdAt: -1 });
+    let walletCode: string = "00001";
+
+    if (lastPersonWithWallet) {
+        const lastWalletCode = parseInt(lastPersonWithWallet.wallet?.substring(4, 9) || "0", 10);
+        const newCode = lastWalletCode + 1;
+        const totalLength = lastPersonWithWallet.wallet?.substring(4, 9).length || 5;
+        walletCode = newCode.toString().padStart(totalLength, "0");
+    }
+    const walletAddress = await generateWallet(`${walletCode.length === 5 ? walletCode : "00001"}`, new mongoose.Types.ObjectId(userId), "User")
+    await User.findByIdAndUpdate(userId, { wallet: walletAddress })
+    res.status(201).json({
+        status: true,
+        message: "Wallet created successfully",
+        walletAddress
+    })
 })

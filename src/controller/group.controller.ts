@@ -737,6 +737,11 @@ export const updateGroup = asyncWrapper(async (req: Request, res: Response, next
 
     if (!updatedGroup) return res.status(500).json({ errors: "Something went wrong. Please try again" })
 
+        console.log({
+            status: true,
+            message: "group successfully updated",
+            updatedGroup
+        })
     res.status(200).json({
         status: true,
         message: "group successfully updated"
@@ -981,4 +986,6 @@ export const handleGroupSuspension = asyncWrapper(async (req, res) => {
         }
     )
 })
+
+
 

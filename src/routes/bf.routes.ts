@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { acceptBfJoinRequest, getAllBfs, getCases, fileCase, updateCase, updateWalletBalance, addBeneficiary, addNewBfMember, applyToJoinBF, createBf, declineRequest, getBfJoinRequests, getBfMembers, getGroupBf, getPrincipalBeneficiary, getPrincipalSettings, removeBeneficiary, updateBfUser, updatePrincipalSettings, contributeToBf, deleteBf, updateBf } from "../controller/bf.controller";
+import { acceptBfJoinRequest, getAllBfs, getCases, fileCase, updateCase, updateWalletBalance, addBeneficiary, addNewBfMember, applyToJoinBF, createBf, declineRequest, getBfJoinRequests, getBfMembers, getGroupBf, getPrincipalBeneficiary, getPrincipalSettings, removeBeneficiary, updateBfUser, updatePrincipalSettings, contributeToBf, deleteBf, updateBf, upgradeGroup } from "../controller/bf.controller";
 
 const router = Router()
 
@@ -23,6 +23,9 @@ router.get('/requests/:bf_id', getBfJoinRequests)
 router.get('/members/:bf_id', getBfMembers)
 router.post('/members', addNewBfMember)
 router.post('/', createBf)
+router.post('/upgrade', upgradeGroup)
+
+
 router.get('/:groupId', getGroupBf)
 router.put('/user', updateBfUser)
 

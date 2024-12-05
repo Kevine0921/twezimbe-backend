@@ -14,6 +14,7 @@ import BfRouter from '../routes/bf.routes'
 import TransactionRouter from '../routes/transaction.routes'
 import questionRouter from '../routes/questions.route'
 import faqRouter from '../routes/faq.routes'
+import groupEventRouter from '../routes/event.routes';
 
 export default async (app: Application) => {
     app.use(express.json());
@@ -46,7 +47,7 @@ export default async (app: Application) => {
     app.use('/api/v1/transactions', TransactionRouter)
     app.use('/api/v1/questions', questionRouter)
     app.use('/api/v1/faqs', faqRouter)
-
+    app.use("/api/v1/group-event", groupEventRouter)
     app.use(ErrorHandlerMiddleware);
 
 

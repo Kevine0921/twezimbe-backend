@@ -8,12 +8,16 @@ interface IBf extends Document {
     fundName: string;
     fundDetails: string;
     accountType: 'bank' | 'mobile' | 'wallet';
-    accountInfo: string;
+    bankName?: string;
+    bankAccountNumber?: string;
+    accountName?: string;
+    accountCurrency?: string;
     walletAddress?: string;
     groupId: mongoose.Types.ObjectId;
     createdBy: mongoose.Types.ObjectId;
+    countryCode: string;
+    mobileNumber?: string;
 }
-
 const BfSchema = new Schema<IBf>(
     {
         fundName: {
@@ -29,12 +33,43 @@ const BfSchema = new Schema<IBf>(
             enum: ['bank', 'mobile', 'wallet'],
             required: true,
         },
-        accountInfo: {
+        bankName: {
             type: String,
             required: function (this: IBf) {
-                return this.accountType !== 'wallet';
+                return this.accountType === 'bank';
             },
         },
+        bankAccountNumber: {
+            type: String,
+            required: function (this: IBf) {
+                return this.accountType === 'bank';
+            },
+        },
+        accountName: {
+            type: String,
+            required: function (this: IBf) {
+                return this.accountType === 'bank';
+            },
+        },
+        mobileNumber: {
+            type: String,
+            required: function (this: IBf) {
+                return this.accountType === "mobile";
+            },
+        },
+        countryCode: {
+            type: String,
+            required: function (this: IBf) {
+                return this.accountType === "mobile";
+            },
+        },
+        accountCurrency: {
+            type: String,
+            required: function (this: IBf) {
+                return this.accountType === 'bank';
+            },
+        },
+
         walletAddress: {
             type: String,
             required: function (this: IBf) {
